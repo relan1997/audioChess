@@ -1,0 +1,37 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env/
+.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# VSCode settings
+.vscode/
+
+# Mac and system files
+.DS_Store
+Thumbs.db
+
+# Logs and debug
+*.log
+
+# Audio files
+*.wav
+
+# Python environment config
+pyvenv.cfg
+
+# Ignore compiled Python files
+*.pyo
+*.pyd
+*.pyc
+
+# Ignore asset cache if any
+assets/__pycache__/
