@@ -2,6 +2,7 @@
 # part one, set up variables images and game loop
 
 import sounddevice as sd
+import string
 from scipy.io.wavfile import write
 import whisper
 import numpy as np
@@ -75,6 +76,7 @@ selection = 100
 #its value is equal to the value of the piece selected from the index in the white or black pieces list
 # 100 is a dummy value to indicate no piece selected
 valid_moves = []
+clear_suggestion()
 # load in game piece images (queen, king, rook, bishop, knight, pawn) x 2
 black_queen = pygame.image.load('assets/images/black queen.png')
 black_queen = pygame.transform.scale(black_queen, (80, 80))
@@ -658,6 +660,7 @@ def draw_game_over():
     screen.blit(font.render(f'Press ENTER to Restart!', True, 'white'), (210, 240))
 
 def parse_chess_command(text):
+    global show_suggestion, suggested_piece, suggested_move
     text = text.lower().strip()
 
     # Example: "select a2" or just "a2"
@@ -689,18 +692,33 @@ def transcribe_audio(filename="command.wav"):
     return result["text"].lower()
 
 def parse_chess_command(command):
+    global show_suggestion, suggested_piece, suggested_move
     command = command.strip().lower()
+    command = command.rstrip(string.punctuation)
     print("OutsideLoop:", command)
 
-    if command.startswith("select"):
+    if command == "suggest move":
+        if show_suggestion:
+            clear_suggestion()
+        else:
+            suggest_move()
+            show_suggestion = True
+        return None
+
+    elif command.startswith("select"):
         command = command.replace("select", "").strip()
 
     try:
-        square = command
-        col = ord(square[0]) - ord('a')
-        row = 8 - int(square[1])
-        print("Col,Row:", col, row)
-        return (col, row)
+        print(command)
+        if len(command) == 2 and command[0] in "abcdefgh" and command[1] in "12345678":
+            col = ord(command[0]) - ord('a')
+            row = 8 - int(command[1])
+            print("Col,Row:", col, row)
+            return (col, row)
+        else:
+            print("Error parsing command: Not a valid square")
+        return None
+
     except Exception as e:
         print("Error parsing command:", e)
 
