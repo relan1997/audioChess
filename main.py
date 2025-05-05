@@ -13,6 +13,18 @@ warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using F
 whisper_model = whisper.load_model("base")
 
 # Mic button position
+suggestion_button_rect = pygame.Rect(850, 700, 100, 40)
+show_suggestion = False
+suggested_piece = None
+suggested_move = None
+def clear_suggestion():
+    global show_suggestion, suggested_piece, suggested_move
+    show_suggestion = False
+    suggested_piece = None
+    suggested_move = None
+
+
+
 mic_button_rect = pygame.Rect(850, 750, 100, 40)
 
 
@@ -112,6 +124,7 @@ counter = 0
 winner = ''
 game_over = False
 def draw_board():
+    # Draw the chess board squares
     for i in range(32):
         column = i % 4
         row = i // 4
@@ -119,16 +132,54 @@ def draw_board():
             pygame.draw.rect(screen, 'light gray', [600 - (column * 200), row * 100, 100, 100])
         else:
             pygame.draw.rect(screen, 'light gray', [700 - (column * 200), row * 100, 100, 100])
-        pygame.draw.rect(screen, 'gray', [0, 800, WIDTH, 100])
-        pygame.draw.rect(screen, 'gold', [0, 800, WIDTH, 100], 5)
-        pygame.draw.rect(screen, 'gold', [800, 0, 200, HEIGHT], 5)
-        status_text = ['White: Select a Piece to Move!', 'White: Select a Destination!',
-                       'Black: Select a Piece to Move!', 'Black: Select a Destination!']
-        screen.blit(big_font.render(status_text[turn_step], True, 'black'), (20, 820))
-        for i in range(9):
-            pygame.draw.line(screen, 'black', (0, 100 * i), (800, 100 * i), 2)
-            pygame.draw.line(screen, 'black', (100 * i, 0), (100 * i, 800), 2)
-        screen.blit(medium_font.render('FORFEIT', True, 'black'), (810, 830))
+    
+    # Draw status area
+    pygame.draw.rect(screen, 'gray', [0, 800, WIDTH, 100])
+    pygame.draw.rect(screen, 'gold', [0, 800, WIDTH, 100], 5)
+    pygame.draw.rect(screen, 'gold', [800, 0, 200, HEIGHT], 5)
+    
+    # Draw status text
+    status_text = ['White: Select a Piece to Move!', 'White: Select a Destination!',
+                   'Black: Select a Piece to Move!', 'Black: Select a Destination!']
+    screen.blit(big_font.render(status_text[turn_step], True, 'black'), (20, 820))
+    
+    # Draw grid lines
+    for i in range(9):
+        pygame.draw.line(screen, 'black', (0, 100 * i), (800, 100 * i), 2)
+        pygame.draw.line(screen, 'black', (100 * i, 0), (100 * i, 800), 2)
+    
+    # Draw file labels (a-h) at the bottom
+    small_font = pygame.font.Font('freesansbold.ttf', 20)
+    for i in range(8):
+        file_label = chr(97 + i)  # 'a' is ASCII 97
+        screen.blit(small_font.render(file_label, True, 'black'), (i * 100 + 85, 780))
+    
+    # Draw rank labels (1-8) on the left
+    for i in range(8):
+        rank_label = str(8 - i)  # Top row is 8, bottom row is 1
+        screen.blit(small_font.render(rank_label, True, 'black'), (5, i * 100 + 5))
+    
+    screen.blit(medium_font.render('FORFEIT', True, 'black'), (810, 830))
+
+        # Draw Suggestion Button
+    # Draw Suggestion Button (neater design)
+    button_color = (255, 200, 60) if show_suggestion else (230, 230, 230)
+    border_color = (200, 140, 0)
+    shadow_color = (180, 180, 180)
+
+# Draw shadow
+    pygame.draw.rect(screen, shadow_color, (suggestion_button_rect.x+3, suggestion_button_rect.y+3, suggestion_button_rect.width, suggestion_button_rect.height), border_radius=12)
+# Draw button
+    pygame.draw.rect(screen, button_color, suggestion_button_rect, border_radius=12)
+# Draw border
+    pygame.draw.rect(screen, border_color, suggestion_button_rect, 3, border_radius=12)
+
+    label_color = (80, 50, 0) if show_suggestion else (60, 60, 60)
+    label = font.render('SUGGEST', True, label_color)
+    label_rect = label.get_rect(center=suggestion_button_rect.center)
+    screen.blit(label, label_rect)
+
+
 
 
 # draw pieces onto board
@@ -154,6 +205,19 @@ def draw_pieces():
             if selection == i:
                 pygame.draw.rect(screen, 'blue', [black_locations[i][0] * 100 + 1, black_locations[i][1] * 100 + 1,
                                                   100, 100], 2)
+        # Draw suggestion highlight if enabled
+    if show_suggestion and suggested_piece is not None and suggested_move is not None:
+        if turn_step < 2:
+            pos = white_locations[suggested_piece]
+            pygame.draw.rect(screen, 'orange', [pos[0]*100+1, pos[1]*100+1, 100, 100], 4)
+            move = suggested_move
+            pygame.draw.rect(screen, 'orange', [move[0]*100+1, move[1]*100+1, 100, 100], 4)
+        else:
+            pos = black_locations[suggested_piece]
+            pygame.draw.rect(screen, 'orange', [pos[0]*100+1, pos[1]*100+1, 100, 100], 4)
+            move = suggested_move
+            pygame.draw.rect(screen, 'orange', [move[0]*100+1, move[1]*100+1, 100, 100], 4)
+
 
 
 # function to check all pieces valid options on board
@@ -302,6 +366,182 @@ def check_knight(position, color):
             moves_list.append(target)
     return moves_list
 
+def evaluate_board(w_pieces, b_pieces):
+    piece_values = {'pawn': 1, 'knight': 3, 'bishop': 3, 'rook': 5, 'queen': 9, 'king': 1000}
+    white_score = sum(piece_values[p] for p in w_pieces)
+    black_score = sum(piece_values[p] for p in b_pieces)
+    return white_score - black_score
+
+def get_all_moves(pieces, locations, color):
+    moves = []
+    for i, piece in enumerate(pieces):
+        pos = locations[i]
+        if piece == 'pawn':
+            valid = check_pawn(pos, color)
+        elif piece == 'knight':
+            valid = check_knight(pos, color)
+        elif piece == 'bishop':
+            valid = check_bishop(pos, color)
+        elif piece == 'rook':
+            valid = check_rook(pos, color)
+        elif piece == 'queen':
+            valid = check_queen(pos, color)
+        elif piece == 'king':
+            valid = check_king(pos, color)
+        else:
+            valid = []
+        for move in valid:
+            moves.append((i, move))
+    return moves
+
+def minimax(depth, alpha, beta, maximizingPlayer, w_pieces, w_locs, b_pieces, b_locs):
+    if depth == 0 or 'king' not in w_pieces or 'king' not in b_pieces:
+        return evaluate_board(w_pieces, b_pieces)
+    if maximizingPlayer:
+        maxEval = float('-inf')
+        moves = get_all_moves(w_pieces, w_locs, 'white')
+        for i, move in moves:
+            w_p, w_l, b_p, b_l = w_pieces[:], w_locs[:], b_pieces[:], b_locs[:]
+            old_pos = w_l[i]
+            w_l[i] = move
+            if move in b_l:
+                captured = b_l.index(move)
+                b_p.pop(captured)
+                b_l.pop(captured)
+            eval = minimax(depth-1, alpha, beta, False, w_p, w_l, b_p, b_l)
+            maxEval = max(maxEval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+            w_l[i] = old_pos
+        return maxEval
+    else:
+        minEval = float('inf')
+        moves = get_all_moves(b_pieces, b_locs, 'black')
+        for i, move in moves:
+            w_p, w_l, b_p, b_l = w_pieces[:], w_locs[:], b_pieces[:], b_locs[:]
+            old_pos = b_l[i]
+            b_l[i] = move
+            if move in w_l:
+                captured = w_l.index(move)
+                w_p.pop(captured)
+                w_l.pop(captured)
+            eval = minimax(depth-1, alpha, beta, True, w_p, w_l, b_p, b_l)
+            minEval = min(minEval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+            b_l[i] = old_pos
+        return minEval
+
+def evaluate_board(w_pieces, b_pieces):
+    piece_values = {'pawn': 1, 'knight': 3, 'bishop': 3, 'rook': 5, 'queen': 9, 'king': 1000}
+    white_score = sum(piece_values[p] for p in w_pieces)
+    black_score = sum(piece_values[p] for p in b_pieces)
+    return white_score - black_score
+
+def get_all_moves(pieces, locations, color):
+    moves = []
+    for i, piece in enumerate(pieces):
+        pos = locations[i]
+        if piece == 'pawn':
+            valid = check_pawn(pos, color)
+        elif piece == 'knight':
+            valid = check_knight(pos, color)
+        elif piece == 'bishop':
+            valid = check_bishop(pos, color)
+        elif piece == 'rook':
+            valid = check_rook(pos, color)
+        elif piece == 'queen':
+            valid = check_queen(pos, color)
+        elif piece == 'king':
+            valid = check_king(pos, color)
+        else:
+            valid = []
+        for move in valid:
+            moves.append((i, move))
+    return moves
+
+def minimax(depth, alpha, beta, maximizingPlayer, w_pieces, w_locs, b_pieces, b_locs):
+    if depth == 0 or 'king' not in w_pieces or 'king' not in b_pieces:
+        return evaluate_board(w_pieces, b_pieces)
+    if maximizingPlayer:
+        maxEval = float('-inf')
+        moves = get_all_moves(w_pieces, w_locs, 'white')
+        for i, move in moves:
+            w_p, w_l, b_p, b_l = w_pieces[:], w_locs[:], b_pieces[:], b_locs[:]
+            old_pos = w_l[i]
+            w_l[i] = move
+            if move in b_l:
+                captured = b_l.index(move)
+                b_p.pop(captured)
+                b_l.pop(captured)
+            eval = minimax(depth-1, alpha, beta, False, w_p, w_l, b_p, b_l)
+            maxEval = max(maxEval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+            w_l[i] = old_pos
+        return maxEval
+    else:
+        minEval = float('inf')
+        moves = get_all_moves(b_pieces, b_locs, 'black')
+        for i, move in moves:
+            w_p, w_l, b_p, b_l = w_pieces[:], w_locs[:], b_pieces[:], b_locs[:]
+            old_pos = b_l[i]
+            b_l[i] = move
+            if move in w_l:
+                captured = w_l.index(move)
+                w_p.pop(captured)
+                w_l.pop(captured)
+            eval = minimax(depth-1, alpha, beta, True, w_p, w_l, b_p, b_l)
+            minEval = min(minEval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+            b_l[i] = old_pos
+        return minEval
+
+def suggest_move():
+    global suggested_piece, suggested_move
+    depth = 5
+    best_score = float('-inf') if turn_step < 2 else float('inf')
+    best_move = None
+    if turn_step < 2:
+        moves = get_all_moves(white_pieces, white_locations, 'white')
+        for i, move in moves:
+            w_p, w_l, b_p, b_l = white_pieces[:], white_locations[:], black_pieces[:], black_locations[:]
+            old_pos = w_l[i]
+            w_l[i] = move
+            if move in b_l:
+                captured = b_l.index(move)
+                b_p.pop(captured)
+                b_l.pop(captured)
+            score = minimax(depth-1, float('-inf'), float('inf'), False, w_p, w_l, b_p, b_l)
+            if score > best_score:
+                best_score = score
+                best_move = (i, move)
+            w_l[i] = old_pos
+        if best_move:
+            suggested_piece, suggested_move = best_move
+    else:
+        moves = get_all_moves(black_pieces, black_locations, 'black')
+        for i, move in moves:
+            w_p, w_l, b_p, b_l = white_pieces[:], white_locations[:], black_pieces[:], black_locations[:]
+            old_pos = b_l[i]
+            b_l[i] = move
+            if move in w_l:
+                captured = w_l.index(move)
+                w_p.pop(captured)
+                w_l.pop(captured)
+            score = minimax(depth-1, float('-inf'), float('inf'), True, w_p, w_l, b_p, b_l)
+            if score < best_score:
+                best_score = score
+                best_move = (i, move)
+            b_l[i] = old_pos
+        if best_move:
+            suggested_piece, suggested_move = best_move
+
 
 # check for valid moves for just selected piece
 def check_valid_moves():
@@ -311,6 +551,8 @@ def check_valid_moves():
         options_list = black_options
     valid_options = options_list[selection]
     return valid_options
+
+
 
 def handle_click(click_coords):
     print(click_coords)
@@ -522,6 +764,9 @@ def handle_click(click_coords):
                 turn_step = 2
                 selection = 100
                 valid_moves = []
+                clear_suggestion()
+                
+
             
             # If white clicks on one of their pieces
             elif click_coords in white_locations:
@@ -554,6 +799,9 @@ def handle_click(click_coords):
                 turn_step = 0
                 selection = 100
                 valid_moves = []
+                clear_suggestion()
+                
+
             
             # If black clicks on one of their pieces
             elif click_coords in black_locations:
@@ -586,6 +834,7 @@ def handle_click(click_coords):
                 turn_step = 2
                 selection = 100
                 valid_moves = []
+                clear_suggestion()
             
             # If white clicks on one of their pieces
             elif click_coords in white_locations:
@@ -618,6 +867,7 @@ def handle_click(click_coords):
                 turn_step = 0
                 selection = 100
                 valid_moves = []
+                clear_suggestion()
             
             # If black clicks on one of their pieces
             elif click_coords in black_locations:
@@ -652,6 +902,7 @@ def handle_click(click_coords):
                 turn_step = 2
                 selection = 100
                 valid_moves = []
+                clear_suggestion()
 
         elif turn_step > 1:
             if click_coords == (8, 8) or click_coords == (9, 8):
@@ -679,6 +930,7 @@ def handle_click(click_coords):
                 turn_step = 0
                 selection = 100
                 valid_moves = []
+                clear_suggestion()
 
 
 
@@ -706,6 +958,16 @@ while run:
         if event.type == pygame.QUIT:
             run = False
 
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = pygame.mouse.get_pos()
+            if suggestion_button_rect.collidepoint(mouse_pos):
+                if show_suggestion:
+                    clear_suggestion()  # Turn off and clear highlight
+                else:
+                    show_suggestion = True
+                    suggest_move()
+
+        
         # 🎙️ Mic button clicked
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if mic_button_rect.collidepoint(event.pos):
