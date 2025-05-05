@@ -30,6 +30,10 @@ mic_button_rect = pygame.Rect(850, 750, 100, 40)
 
 
 pygame.init()
+black_turn_sound = pygame.mixer.Sound("blackTurn.wav")
+white_turn_sound = pygame.mixer.Sound("whiteTurn.wav")
+error_sound = pygame.mixer.Sound("error.wav")
+suggestion_sound = pygame.mixer.Sound("suggestion.wav")
 WIDTH = 1000
 HEIGHT = 900
 file_to_index = {
@@ -543,6 +547,7 @@ def suggest_move():
             b_l[i] = old_pos
         if best_move:
             suggested_piece, suggested_move = best_move
+    suggestion_sound.play()
 
 
 # check for valid moves for just selected piece
@@ -574,6 +579,8 @@ def handle_click(click_coords):
                 black_pieces.pop(black_piece)
                 black_locations.pop(black_piece)
             turn_step = 2
+            print("audio Played")
+            black_turn_sound.play()
             selection = 100
             valid_moves = []
 
@@ -679,7 +686,7 @@ def parse_chess_command(text):
     return None  # If parsing fails
 
 
-def record_audio(duration=5, filename="command.wav"):
+def record_audio(duration=2.5, filename="command.wav"):
     fs = 44100
     print("Recording...")
     recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='int16')
@@ -697,7 +704,7 @@ def parse_chess_command(command):
     command = command.rstrip(string.punctuation)
     print("OutsideLoop:", command)
 
-    if command == "suggest move":
+    if any(word in command for word in ["suggest", "move"]):
         if show_suggestion:
             clear_suggestion()
         else:
@@ -720,6 +727,7 @@ def parse_chess_command(command):
         return None
 
     except Exception as e:
+        error_sound.play()
         print("Error parsing command:", e)
 
     return None
@@ -780,6 +788,8 @@ def handle_click(click_coords):
                 black_options = check_options(black_pieces, black_locations, 'black')
                 white_options = check_options(white_pieces, white_locations, 'white')
                 turn_step = 2
+                print("audio Played")
+                black_turn_sound.play()
                 selection = 100
                 valid_moves = []
                 clear_suggestion()
@@ -815,6 +825,8 @@ def handle_click(click_coords):
                 black_options = check_options(black_pieces, black_locations, 'black')
                 white_options = check_options(white_pieces, white_locations, 'white')
                 turn_step = 0
+                print("audio Played")
+                white_turn_sound.play()
                 selection = 100
                 valid_moves = []
                 clear_suggestion()
