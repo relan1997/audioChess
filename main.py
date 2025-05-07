@@ -709,6 +709,15 @@ def parse_chess_command(command):
     command = command.rstrip(string.punctuation)
     print("OutsideLoop:", command)
 
+    if command == "start game":
+        if game_over:
+            # Post a KEYDOWN event for RETURN (Enter) key
+            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+            print("Simulated RETURN key event for new game!")
+        else:
+            print("Game is already running.")
+        return None
+
     if command in ["forfeit", "end game"]:
         game_over = True
         if turn_step < 2:
