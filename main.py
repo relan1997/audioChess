@@ -34,6 +34,8 @@ black_turn_sound = pygame.mixer.Sound("blackTurn.wav")
 white_turn_sound = pygame.mixer.Sound("whiteTurn.wav")
 error_sound = pygame.mixer.Sound("error.wav")
 suggestion_sound = pygame.mixer.Sound("suggestion.wav")
+black_win_sound = pygame.mixer.Sound("blackWins.wav")
+white_win_sound = pygame.mixer.Sound("whiteWins.wav")
 WIDTH = 1000
 HEIGHT = 900
 file_to_index = {
@@ -567,6 +569,7 @@ def handle_click(click_coords):
     if turn_step <= 1:
         if click_coords == (8, 8) or click_coords == (9, 8):
             winner = 'black'
+            black_win_sound.play()
 
         # 🆕 If clicked a valid move square
         if click_coords in valid_moves and selection != 100:
@@ -576,6 +579,7 @@ def handle_click(click_coords):
                 captured_pieces_white.append(black_pieces[black_piece])
                 if black_pieces[black_piece] == 'king':
                     winner = 'white'
+                    white_win_sound.play()
                 black_pieces.pop(black_piece)
                 black_locations.pop(black_piece)
             turn_step = 2
@@ -595,6 +599,7 @@ def handle_click(click_coords):
     elif turn_step > 1:
         if click_coords == (8, 8) or click_coords == (9, 8):
             winner = 'white'
+            white_win_sound.play()
 
         if click_coords in valid_moves and selection != 100:
             black_locations[selection] = click_coords
@@ -699,12 +704,23 @@ def transcribe_audio(filename="command.wav"):
     return result["text"].lower()
 
 def parse_chess_command(command):
-    global show_suggestion, suggested_piece, suggested_move
+    global show_suggestion, suggested_piece, suggested_move,game_over, winner, turn_step
     command = command.strip().lower()
     command = command.rstrip(string.punctuation)
     print("OutsideLoop:", command)
 
-    if any(word in command for word in ["suggest", "move"]):
+    if command in ["forfeit", "end game"]:
+        game_over = True
+        if turn_step < 2:
+            winner = 'Black wins by forfeit!'
+            black_win_sound.play()
+        else:
+            winner = 'White wins by forfeit!'
+            white_win_sound.play()
+        print(winner)
+        return None
+
+    elif any(word in command for word in ["suggest", "move"]):
         if show_suggestion:
             clear_suggestion()
         else:
@@ -723,11 +739,11 @@ def parse_chess_command(command):
             print("Col,Row:", col, row)
             return (col, row)
         else:
-            print("Error parsing command: Not a valid square")
+            print("Error parsing command")
+            error_sound.play();
         return None
 
     except Exception as e:
-        error_sound.play()
         print("Error parsing command:", e)
 
     return None
@@ -770,6 +786,7 @@ def handle_click(click_coords):
             # Check for forfeit
             if click_coords == (8, 8) or click_coords == (9, 8):
                 winner = 'black'
+                black_win_sound.play()
                 return
 
             # If white has already selected a piece and clicks a valid move location
@@ -781,6 +798,7 @@ def handle_click(click_coords):
                     captured_pieces_white.append(black_pieces[black_piece])
                     if black_pieces[black_piece] == 'king':
                         winner = 'white'
+                        white_win_sound.play()
                     black_pieces.pop(black_piece)
                     black_locations.pop(black_piece)
                 
@@ -807,6 +825,7 @@ def handle_click(click_coords):
             # Check for forfeit
             if click_coords == (8, 8) or click_coords == (9, 8):
                 winner = 'white'
+                white_win_sound.play()
                 return
 
             # If black has already selected a piece and clicks a valid move location
@@ -844,6 +863,7 @@ def handle_click(click_coords):
             # Check for forfeit
             if click_coords == (8, 8) or click_coords == (9, 8):
                 winner = 'black'
+                black_win_sound.play()
                 return
 
             # If white has already selected a piece and clicks a valid move location
@@ -855,6 +875,7 @@ def handle_click(click_coords):
                     captured_pieces_white.append(black_pieces[black_piece])
                     if black_pieces[black_piece] == 'king':
                         winner = 'white'
+                        white_win_sound.play()
                     black_pieces.pop(black_piece)
                     black_locations.pop(black_piece)
                 
@@ -877,6 +898,7 @@ def handle_click(click_coords):
             # Check for forfeit
             if click_coords == (8, 8) or click_coords == (9, 8):
                 winner = 'white'
+                white_win_sound.play()
                 return
 
             # If black has already selected a piece and clicks a valid move location
@@ -909,6 +931,7 @@ def handle_click(click_coords):
         if turn_step <= 1:
             if click_coords == (8, 8) or click_coords == (9, 8):
                 winner = 'black'
+                black_win_sound.play()
 
             # Selecting a white piece
             if click_coords in white_locations:
